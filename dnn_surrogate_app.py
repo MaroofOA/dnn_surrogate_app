@@ -46,6 +46,7 @@ st.markdown("""
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         margin-bottom: 20px;
+        color: #333;
     }
 
     /* ---------- Footer ---------- */
@@ -80,7 +81,7 @@ st.markdown("""
 # =======================================================
 st.markdown("""
 <div class="header-box">
-    <h1>DNN Surrogate Reactive Power Predictor</h1>
+    <h1>⚡DNN Surrogate for AC-OPF Reactive Power Prediction</h1>
     <h4>Fast & Accurate PV Reactive Power Estimation using Deep Learning</h4>
 </div>
 """, unsafe_allow_html=True)
