@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import time
+import matplotlib.pyplot as plt
+from io import BytesIO
 from dnn_surrogate_predictor import SurrogatePredictor
 
 # =======================================================
@@ -181,7 +183,7 @@ if uploaded_file is not None:
         start_time = time.time()
 
         try:
-            result = predictor.predict_q_table(df)
+            outputs = predictor.predict_q_table(df)
             runtime = time.time() - start_time
 
             st.markdown("""
@@ -190,13 +192,88 @@ if uploaded_file is not None:
             </div>
             """, unsafe_allow_html=True)
 
-            if isinstance(result, pd.DataFrame):
-                st.dataframe(result.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
+            # Single snapshot (DataFrame)
+            if isinstance(outputs, pd.DataFrame):
+                st.dataframe(outputs.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
+
+                # CSV download
+                csv_bytes = outputs.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "💾 Download Q* Predictions (CSV)",
+                    data=csv_bytes,
+                    file_name="q_predictions.csv",
+                    mime="text/csv"
+                )
+
+                # Plot
+                fig, ax = plt.subplots(figsize=(8,4))
+                ax.bar(outputs["PV Bus #"], outputs["Predicted Q* (Mvar)"], color="#005DAA88")
+                ax.set_xlabel("PV Bus #")
+                ax.set_ylabel("Q* (Mvar)")
+                ax.set_title("Predicted Reactive Power for Snapshot")
+                ax.grid(False)
+                st.pyplot(fig)
+
+                # PNG and PDF downloads
+                png_buf = BytesIO()
+                pdf_buf = BytesIO()
+                fig.savefig(png_buf, format="png", dpi=300, bbox_inches="tight")
+                fig.savefig(pdf_buf, format="pdf", bbox_inches="tight")
+                st.download_button(
+                    "📥 Download Plot (PNG)",
+                    png_buf.getvalue(),
+                    file_name="q_prediction.png",
+                    mime="image/png"
+                )
+                st.download_button(
+                    "📥 Download Plot (PDF)",
+                    pdf_buf.getvalue(),
+                    file_name="q_prediction.pdf",
+                    mime="application/pdf"
+                )
+
+            # Multiple snapshots (list of DataFrames)
             else:
-                for i, snap in enumerate(result):
-                    st.markdown(f"### Snapshot {i+1}")
-                    st.dataframe(snap.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
-                    st.markdown("---")
+                for i, snap_df in enumerate(outputs, start=1):
+                    st.markdown(f"### Snapshot {i}")
+                    st.dataframe(snap_df.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
+
+                    # Export CSV for this snapshot
+                    csv_bytes = snap_df.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        f"💾 Download Snapshot {i} (CSV)",
+                        csv_bytes,
+                        file_name=f"q_predictions_snapshot_{i}.csv",
+                        mime="text/csv"
+                    )
+
+                    # Plot each snapshot
+                    fig, ax = plt.subplots(figsize=(8,4))
+                    ax.bar(snap_df["PV Bus #"], snap_df["Predicted Q* (Mvar)"], color="#005DAA88")
+                    ax.set_xlabel("PV Bus #")
+                    ax.set_ylabel("Q* (Mvar)")
+                    ax.set_title(f"Snapshot {i} — Predicted Reactive Power")
+                    ax.grid(False)
+                    st.pyplot(fig)
+
+                    # PNG/PDF downloads
+                    buf_png = BytesIO()
+                    buf_pdf = BytesIO()
+                    fig.savefig(buf_png, format="png", dpi=300, bbox_inches="tight")
+                    fig.savefig(buf_pdf, format="pdf", bbox_inches="tight")
+
+                    st.download_button(
+                        f"📥 Download Plot (PNG) — Snapshot {i}",
+                        buf_png.getvalue(),
+                        file_name=f"q_prediction_snapshot_{i}.png",
+                        mime="image/png"
+                    )
+                    st.download_button(
+                        f"📥 Download Plot (PDF) — Snapshot {i}",
+                        buf_pdf.getvalue(),
+                        file_name=f"q_prediction_snapshot_{i}.pdf",
+                        mime="application/pdf"
+                    )
 
             st.success(f"🕒 Execution Time: {runtime:.4f} seconds")
 
