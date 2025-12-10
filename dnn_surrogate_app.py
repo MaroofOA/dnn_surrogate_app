@@ -4,138 +4,209 @@ import numpy as np
 import time
 from dnn_surrogate_predictor import SurrogatePredictor
 
-# -----------------------------
-# Page Setup
-# -----------------------------
+# =======================================================
+# Modern Page Configuration
+# =======================================================
 st.set_page_config(
-    page_title="DNN Surrogate Predictor – Atilola",
-    layout="centered"
+    page_title="DNN Surrogate Predictor",
+    layout="centered",
+    initial_sidebar_state="expanded"
 )
 
-# -----------------------------
-# Title + Description
-# -----------------------------
+# =======================================================
+# Custom Modern CSS Styling
+# =======================================================
 st.markdown("""
-# ⚡ DNN Surrogate Reactive Power Predictor  
-### Predict PV Inverter Reactive Power Setpoints using a Trained Deep Neural Network  
----
-""")
+<style>
 
-# -----------------------------
-# Input Instructions
-# -----------------------------
+    /* ---------- Global Styling ---------- */
+    .main {
+        background-color: #f7f9fc;
+    }
+    div.block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+
+    /* ---------- Beautiful Header ---------- */
+    .header-box {
+        padding: 25px 20px;
+        background: linear-gradient(90deg, #004E92, #000428);
+        color: white;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* ---------- Instruction Card ---------- */
+    .card {
+        background-color: white;
+        padding: 20px 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    /* ---------- Footer ---------- */
+    .footer {
+        font-size: 13px;
+        text-align: center;
+        margin-top: 30px;
+        color: #777;
+    }
+
+    /* ---------- Buttons ---------- */
+    .stButton>button {
+        border-radius: 10px;
+        height: 3rem;
+        background: #004E92;
+        color: white;
+        border: none;
+        font-weight: 600;
+        transition: 0.2s ease-in-out;
+    }
+
+    .stButton>button:hover {
+        transform: scale(1.03);
+        background: #003b70;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
+# =======================================================
+# Header UI
+# =======================================================
 st.markdown("""
-### 📘 **Input Data Requirements**
+<div class="header-box">
+    <h1>DNN Surrogate Reactive Power Predictor</h1>
+    <h4>Fast & Accurate PV Reactive Power Estimation using Deep Learning</h4>
+</div>
+""", unsafe_allow_html=True)
 
-Your uploaded CSV must contain **exactly 130 features per snapshot**, ordered as:
-
-#### **1. Load Features**
-- **P_load**: 33 values → *buses 1–33*  
-- **Q_load**: 33 values → *buses 1–33*
-
-#### **2. PV Injection Features**
-- **P_PV**: 32 values → *buses 2–33*  
-  - PV-connected buses: actual P_PV values  
-  - Non-PV buses: **0**
-
-#### **3. PV Mask**
-- **PV_mask**: 32 values → *buses 2–33*  
-  - PV-connected bus → **1**  
-  - Non-PV bus → **0**
-
-#### ✔ CSV can be uploaded **with or without headers**  
-The app automatically detects formats.
-
----
-
-""")
-
-# -----------------------------
-# Template Download
-# -----------------------------
-sample_template = pd.DataFrame(np.zeros((1,130)))
-st.download_button(
-    label="📄 Download Input Template (CSV)",
-    data=sample_template.to_csv(index=False).encode("utf-8"),
-    file_name="surrogate_input_template.csv",
-    mime="text/csv"
-)
-
-# -----------------------------
-# Sidebar – Author Info
-# -----------------------------
+# =======================================================
+# Sidebar – Author Profile
+# =======================================================
 st.sidebar.markdown("""
 ### 👤 **Author**
 **Morufdeen Atilola**  
 PhD Student, Electrical Engineering  
-University at Buffalo
+University at Buffalo  
 
 ---
+
+### ⚙ Model Status
 """)
 
-# -----------------------------
-# Load Model (Cached)
-# -----------------------------
+# Cache model
 @st.cache_resource
 def load_model():
     return SurrogatePredictor()
 
 predictor = load_model()
+st.sidebar.success("Model Loaded Successfully")
 
-# -----------------------------
-# File Upload Area
-# -----------------------------
-uploaded_file = st.file_uploader("📤 Upload CSV containing the 130 input features", type=["csv"])
+# =======================================================
+# Input Instructions Card
+# =======================================================
+st.markdown("""
+<div class="card">
+
+### 📘 Input Requirements (130 Features)
+
+Your CSV can be **with or without header**.
+
+The features must follow this order:
+
+- **P_load**: 33 values (bus 1–33)  
+- **Q_load**: 33 values (bus 1–33)  
+- **P_PV**: 32 values (bus 2–33)  
+  - PV buses → actual values  
+  - Non-PV buses → 0  
+- **PV_mask**: 32 values (bus 2–33)  
+  - PV bus → 1  
+  - Non-PV bus → 0  
+
+✔ Any number of rows (snapshots) allowed  
+✔ Must be exactly **130 columns**
+
+</div>
+""", unsafe_allow_html=True)
+
+# =======================================================
+# Template Download Button
+# =======================================================
+sample_template = pd.DataFrame(np.zeros((1, 130)))
+st.download_button(
+    "📄 Download Input Template (CSV)",
+    data=sample_template.to_csv(index=False).encode("utf-8"),
+    file_name="surrogate_input_template.csv",
+    mime="text/csv"
+)
+
+# =======================================================
+# File Upload UI
+# =======================================================
+uploaded_file = st.file_uploader("📤 Upload your CSV file", type=["csv"])
 
 if uploaded_file is not None:
-    # Try reading normally
+    # Try loading file with or without header
     try:
         df = pd.read_csv(uploaded_file)
-        # If headerless, fix it
         if df.shape[1] != 130:
             df = pd.read_csv(uploaded_file, header=None)
     except:
         df = pd.read_csv(uploaded_file, header=None)
 
-    # Validate correct dimension
+    # Validation
     if df.shape[1] != 130:
-        st.error(f"❌ Input data must contain exactly **130 columns**, but file contains **{df.shape[1]}**.")
+        st.error(f"❌ File contains {df.shape[1]} columns. Expected exactly 130.")
         st.stop()
 
-    st.success(f"File uploaded successfully: {df.shape[0]} snapshot(s) × {df.shape[1]} features")
+    # Show uploaded data
+    st.markdown("""
+    <div class="card">
+        <h4>📊 Uploaded Data Preview</h4>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Display input
-    st.markdown("### 🔍 Uploaded Input Preview")
     st.dataframe(df.head())
 
-    # -----------------------------
-    # Run Prediction
-    # -----------------------------
+    # =============================================
+    # Run Prediction Button
+    # =============================================
     if st.button("⚡ Run Prediction"):
-        start = time.time()
+        start_time = time.time()
 
         try:
-            results = predictor.predict_q_table(df)
-            exec_time = time.time() - start
+            result = predictor.predict_q_table(df)
+            runtime = time.time() - start_time
 
-            st.markdown("## ✅ Prediction Output")
+            st.markdown("""
+            <div class="card">
+                <h3>✅ Prediction Output</h3>
+            </div>
+            """, unsafe_allow_html=True)
 
-            # Single snapshot
-            if isinstance(results, pd.DataFrame):
-                st.dataframe(
-                    results.style.format({"Predicted Q* (Mvar)": "{:.4f}"})
-                )
-
-            # Multiple snapshots
+            if isinstance(result, pd.DataFrame):
+                st.dataframe(result.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
             else:
-                for i, r in enumerate(results):
+                for i, snap in enumerate(result):
                     st.markdown(f"### Snapshot {i+1}")
-                    st.dataframe(
-                        r.style.format({"Predicted Q* (Mvar)": "{:.4f}"})
-                    )
+                    st.dataframe(snap.style.format({"Predicted Q* (Mvar)": "{:.4f}"}))
                     st.markdown("---")
 
-            st.info(f"🕒 Prediction completed in **{exec_time:.4f} seconds**.")
+            st.success(f"🕒 Execution Time: {runtime:.4f} seconds")
 
         except Exception as e:
-            st.error(f"❌ Prediction Error: {str(e)}")
+            st.error(f"❌ Error during prediction: {str(e)}")
+
+# =======================================================
+# Footer
+# =======================================================
+st.markdown("""
+<div class="footer">
+Powered by the DNN Surrogate Model — University at Buffalo  
+</div>
+""", unsafe_allow_html=True)
